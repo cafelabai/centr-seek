@@ -30,129 +30,19 @@ This project implements a PDF classification pipeline using a Retrieval-Augmente
 | OpenAI GPT / Groq  | Final document classification using LLM         |
 
 ---
+Step-by-Step Workflow (Summary)
 
-## Pipeline Architecture
+1. Text Extraction: PDF content is extracted using PyMuPDF, ensuring accurate parsing of structured and unstructured data.
 
-```mermaid
-graph LR
-A[PDF Upload] --> B[Text Extraction (PyMuPDF)]
-B --> C[Sentence Segmentation (spaCy + Sentencier)]
-C --> D[Chunking & Embedding (SentenceTransformers)]
-D --> E[Vector Storage (Qdrant)]
+2. Sentence Segmentation: The extracted text is segmented into logical sentences using spaCy and Sentencier, preparing it for effective chunking.
 
-F[Classification Request] --> G[Query Embedding + Top-K Retrieval]
-G --> H[Relevant Chunks]
-H --> I[LLM Classification (ChatGPT/Groq)]
-```
+3. Embedding: Sentence chunks are transformed into dense vector representations using pre-trained SentenceTransformer models.
 
----
+4. Vector Storage: These embeddings are stored in a Qdrant vector database for fast similarity search and retrieval.
 
-## Project Structure
+5. Top-K Retrieval: At classification time, a query is embedded and matched against stored vectors to retrieve the top-k most relevant sentence chunks.
 
-```
-pdf_classification_rag/
-|
-├── extract_text.py           # PDF text extraction
-├── chunk_sentences.py        # Sentence segmentation and chunking
-├── vector_store.py           # Embedding and Qdrant integration
-├── classify_document.py      # RAG-based classification via LLM
-├── config.py                 # Configuration for Qdrant, model, etc.
-└── utils.py                  # Helper functions
-```
-
----
-
-## Step-by-Step Workflow
-
-### 1. Extract Text from PDF
-```python
-import fitz  # PyMuPDF
-
-def extract_text(pdf_path):
-    doc = fitz.open(pdf_path)
-    return "\n".join(page.get_text() for page in doc)
-```
-
-### 2. Sentence Segmentation and Chunking
-```python
-import spacy
-from spacy_sentencizer import SpacySentencizer
-
-nlp = spacy.load("en_core_web_sm")
-nlp.add_pipe("sentencizer")
-
-def segment_sentences(text):
-    doc = nlp(text)
-    return [sent.text.strip() for sent in doc.sents if len(sent.text.strip()) > 0]
-```
-
-### 3. Embedding and Storing in Qdrant
-```python
-from sentence_transformers import SentenceTransformer
-from qdrant_client import QdrantClient
-from qdrant_client.models import PointStruct
-
-model = SentenceTransformer("all-MiniLM-L6-v2")
-client = QdrantClient(host="localhost", port=6333)
-
-def embed_and_store(sentences, collection_name="pdf_chunks"):
-    vectors = model.encode(sentences)
-    points = [PointStruct(id=i, vector=vec, payload={"text": sent})
-              for i, (vec, sent) in enumerate(zip(vectors, sentences))]
-    client.upsert(collection_name=collection_name, points=points)
-```
-
-### 4. Top-K Retrieval from Qdrant
-```python
-def retrieve_top_k(query, k=5):
-    query_vector = model.encode([query])[0]
-    search_result = client.search(
-        collection_name="pdf_chunks",
-        query_vector=query_vector,
-        limit=k
-    )
-    return [hit.payload["text"] for hit in search_result]
-```
-
-### 5. LLM-based Classification
-```python
-import openai  # or use Groq API
-openai.api_key = "your-api-key"
-
-def classify_with_llm(query, retrieved_chunks):
-    context = "\n".join(retrieved_chunks)
-    prompt = f"""You are a document classification assistant. Given the following content:\n\n{context}\n\nClassify the type of document (e.g., invoice, report, contract, etc.):"""
-
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
-    )
-    return response["choices"][0]["message"]["content"].strip()
-```
-
----
-
-## Example Usage
-```python
-pdf_text = extract_text("sample.pdf")
-sentences = segment_sentences(pdf_text)
-embed_and_store(sentences)
-
-retrieved = retrieve_top_k("What is this document about?")
-classification = classify_with_llm("Classify this document", retrieved)
-
-print("Predicted Document Type:", classification)
-```
-
----
-
-## Configuration Tips
-- Use Docker for local Qdrant setup
-- Ensure consistent vector dimension across embedding and Qdrant
-- Choose between OpenAI or Groq depending on latency and cost
-
+6. LLM Classification: The retrieved content is provided as context to a Large Language Model (e.g., ChatGPT or Groq), which classifies the type of document.
 ---
 
 ## Future Improvements
@@ -161,12 +51,4 @@ print("Predicted Document Type:", classification)
 - Fine-tuning a classification model on labeled chunks
 
 ---
-
-## License
-MIT
-
----
-
-## Author
-Kirthivasan PN
 
