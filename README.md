@@ -42,7 +42,7 @@ Step-by-Step Workflow (Summary)
 
 5. Top-K Retrieval: At classification time, a query is embedded and matched against stored vectors to retrieve the top-k most relevant sentence chunks.
 
-6. LLM Classification: The retrieved content is provided as context to a Large Language Model (e.g., ChatGPT or Groq), which classifies the type of document.
+6. LLM Classification: The retrieved content is provided as context to a Large Language Model (e.g., ChatGPT or Groq), which identifies the type of document.
 ---
 
 ## Future Improvements
